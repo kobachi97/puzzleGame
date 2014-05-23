@@ -86,8 +86,6 @@ bool GameScene::init() {
             tagNum++;
             drop->getSprite()->setTag(tagNum);
             
-            
-            drop->setScale(0.5f);
             this->bg->addChild(drop->getSprite());
             dropMap.insert(std::pair<int, Drop*>(tagNum, drop));
 
@@ -98,12 +96,10 @@ bool GameScene::init() {
 		}
 	}
 	
-	
 	touchActiceFlg = true;
 	
 	return true;
 }
-
 
 Point GameScene::getLocation(GameCoordinates gameCoordinates) {
 	Size mapSize = this->bg->getContentSize();
@@ -125,6 +121,7 @@ Point GameScene::getLocation(GameCoordinates gameCoordinates) {
 
 bool GameScene::onTouchBegan(Touch* pTouch, Event* pEvent)
 {
+    isTouchCorrect = false;
     int tag = 0;
 	for (int i = 0; i < MAX_ROW; i++) {
 		for (int j = 0; j < MAX_COL; j++) {
@@ -139,7 +136,16 @@ bool GameScene::onTouchBegan(Touch* pTouch, Event* pEvent)
             if(rect.containsPoint(locationInNode))
             {
                 drop->removeFromParentAndCleanup(true);
-                dropMap.erase(tag);
+                
+                if( j < 6)
+                {
+                    Drop* tapDrop = dropMap.at(tag);
+                    Drop* upDrop = dropMap.at(tag + 1);
+                    dropMap.erase(tag);
+                    dropMap.insert(std::pair<int, Drop*>(tag, upDrop));
+                }
+               
+                isTouchCorrect = true;
                 return true;
             }
         }
@@ -150,6 +156,10 @@ bool GameScene::onTouchBegan(Touch* pTouch, Event* pEvent)
 
 void GameScene::onTouchEnded(Touch* pTouch, Event* pEvent)
 {
+    if(!isTouchCorrect)
+    {
+        return;
+    }
     int addTag = 7;
     int tag = 0;
     int x = 0;
@@ -161,40 +171,194 @@ void GameScene::onTouchEnded(Touch* pTouch, Event* pEvent)
             
             if(drop == nullptr && tag % 7 != 0)
             {
-                Node* drop = this->bg->getChildByTag(tag + 1);
+                int num = 0;
+                Node* upDrop = this->bg->getChildByTag(tag + 1);
+                while(upDrop == nullptr)
+                {
+                    num++;
+                    Node* upDrop = this->bg->getChildByTag(tag + num);
+                }
                 Point loc = getLocation(gameCoordinates);
-                drop->setPosition(loc);
-                drop->setTag(tag);
+                upDrop->setPosition(loc);
+                upDrop->setTag(tag);
+                Drop* insertDrop = dropMap.at(tag + 1);
+                dropMap.erase(tag);
+                dropMap.insert(std::pair<int, Drop*>(tag, insertDrop));
                 x = gameCoordinates.x + 1;
             }
+            else if(drop == nullptr && tag % 7 == 0)
+            {
+                x = gameCoordinates.x + 1;
+            }
+            
         }
     }
-    createNewDrop(addTag * x);
-//    checkDeleteDrop();
-//    deleteChainDrop();
-//
-//    for(auto &it : removeTagNamuber)
-//    {
-//        createNewDrop(it);
-//    }
+   
+    //++++++++++++++++++++++
+    std::map<int, Drop*>::iterator it = dropMap.begin();
+	while( it != dropMap.end() )
+	{
+		log("first: %d second: %d",(*it).first, (*it).second->getSprite()->getTag());
+		++it;
+	}
+    
+    
+    
+    
+    
+    if(x == 0)
+    {
+        createNewDrop(addTag);
+    }
+    else
+    {
+        createNewDrop(addTag * x);
+    }
+    
+    
+    checkDeleteDrop();
+    deleteChainDrop();
+    
+    
+    
+    moveDrop();
+    getNullTagList();
+
+
+    while(removeTagNamuber.size() > 0)
+    {
+        for(auto &it : removeTagNamuber)
+        {
+            createNewDrop(it);
+        }
+        checkDeleteDrop();
+        deleteChainDrop();
+        moveDrop();
+        getNullTagList();
+    }
+    
+    int y = 0;
 //    checkDeleteDrop();
 //    deleteChainDrop();
 }
 
+void GameScene::moveDrop()
+{
+    int tag=0;
+    for (int i = 0; i < MAX_ROW; i++) {
+		for (int j = 0; j < MAX_COL; j++) {
+            GameCoordinates gameCoordinates(i, j);
+            tag++;
+            Node* drop = this->bg->getChildByTag(tag);
+            
+            if(drop == nullptr && tag % 7 != 0)
+            {
+                std::map<int, Drop*>::iterator it = dropMap.begin();
+                while( it != dropMap.end() )
+                {
+                    log("前 first: %d second: %d",(*it).first, (*it).second->getSprite()->getTag());
+                    ++it;
+                }
+
+//                log("空:%d", tag);
+                int num = 1;
+                Node* upDrop = this->bg->getChildByTag(tag + num);
+                while(upDrop == nullptr)
+                {
+                    if((tag + num) % 7 == 0)
+                    {
+                        break;
+                    }
+                    num++;
+                    upDrop = this->bg->getChildByTag(tag + num);
+                    
+                }
+                if(upDrop != nullptr)
+                {
+                    Point loc = getLocation(gameCoordinates);
+                    upDrop->setPosition(loc);
+                    upDrop->setTag(tag);
+                    Drop* insertDrop = dropMap.at(tag + num);
+//                    log("%d", tag);
+                    insertDrop->getSprite()->setTag(tag);
+                    dropMap.erase(tag);
+                    dropMap.insert(std::pair<int, Drop*>(tag, insertDrop));
+                    std::map<int, Drop*>::iterator it = dropMap.begin();
+                    while( it != dropMap.end() )
+                    {
+                        log("後 first: %d second: %d",(*it).first, (*it).second->getSprite()->getTag());
+                        ++it;
+                    }
+
+                }
+            }
+        }
+    }
+   
+}
+
+void GameScene::getNullTagList()
+{
+    removeTagNamuber.clear();
+    int tag = 0;
+    for (int i = 0; i < MAX_ROW; i++) {
+		for (int j = 0; j < MAX_COL; j++) {
+            tag++;
+            Node* drop = this->bg->getChildByTag(tag);
+            if (drop == nullptr) {
+                removeTagNamuber.push_back(tag);
+            }
+
+        }
+    }
+}
+
+void GameScene::updateDropMap()
+{
+    dropMap.clear();
+    int tag = 0;
+    for (int i = 0; i < MAX_ROW; i++) {
+		for (int j = 0; j < MAX_COL; j++) {
+            tag++;
+            
+        }
+    }
+}
+
+
 void GameScene::createNewDrop(int addTag)
 {
     int number=CCRANDOM_0_1()*4;
-    GameCoordinates gameCoordinates(addTag - (6 * ((addTag - 1) / 7)), (addTag - 1) / 7);
+    int num = (addTag - 1);
+    if(addTag % 7 == 0)
+    {
+        Drop* drop = Drop::create(number + 1);
+        GameCoordinates gameCoordinates((addTag - 1)/ 7, 6);
+        Point loc = getLocation(gameCoordinates);
+        drop->setLocation(loc);
+        drop->getSprite()->setTag(addTag);
+        this->bg->addChild(drop->getSprite());
+        dropMap.erase(addTag);
+        dropMap.insert(std::pair<int, Drop*>(addTag, drop));
+    }
+    else
+    {
+        Drop* drop = Drop::create(number + 1);
+        GameCoordinates gameCoordinates(num / 7, (addTag - (7 * (addTag / 7) + 1)));
+        Point loc = getLocation(gameCoordinates);
+        drop->setLocation(loc);
+        drop->getSprite()->setTag(addTag);
+        this->bg->addChild(drop->getSprite());
+        dropMap.insert(std::pair<int, Drop*>(addTag, drop));
+    }
     
-    Drop* drop = Drop::create(number + 1);
-    
-    
-    Point loc = getLocation(gameCoordinates);
-    drop->setLocation(loc);
-    drop->getSprite()->setTag(addTag);
-    this->bg->addChild(drop->getSprite());
-    dropMap.insert(std::pair<int, Drop*>(addTag, drop));
-   
+    //+++++++++
+    std::map<int, Drop*>::iterator it = dropMap.begin();
+	while( it != dropMap.end() )
+	{
+		log(" create first: %d second: %d",(*it).first, (*it).second->getSprite()->getTag());
+		++it;
+	}
 }
 
 
@@ -236,7 +400,7 @@ void GameScene::checkDeleteDrop()
                         {
                             removeTagNamuber.push_back(it);                        }
                     }
-                    log("連続だよ");
+//                    log("連続だよ");
                 }
             }
         }
@@ -255,7 +419,7 @@ std::vector<int> GameScene::checkNearDrop(std::vector<int> removeTagNumber,GameC
     }
     
     GameCoordinates gameCoordinates(targetCoordnates.x + 1, targetCoordnates.y);
-    log("x: %d y:%d",targetCoordnates.x ,targetCoordnates.y);
+//    log("x: %d y:%d",targetCoordnates.x ,targetCoordnates.y);
     
     //右方向のドロップチェック
     if(targetCoordnates.x < 6 && flagX)
@@ -331,41 +495,46 @@ std::vector<int> GameScene::checkNearDrop(std::vector<int> removeTagNumber,GameC
 
 void GameScene::deleteChainDrop()
 {
+    //******
+    std::map<int, Drop*>::iterator it = dropMap.begin();
+	while( it != dropMap.end() )
+	{
+		log("first: %d second: %d",(*it).first, (*it).second->getSprite()->getTag());
+		++it;
+	}
+
     std::vector<int>deleteList;
     deleteList = removeTagNamuber;
     for(auto &it : deleteList)
     {
-        Drop* drop = dropMap.find(it)->second;
-        drop->getSprite()->removeFromParentAndCleanup(true);
-        dropMap.erase(it);
+        std::map<int, Drop*>::iterator it4 = dropMap.begin();
+        while( it4 != dropMap.end() )
+        {
+            log("first: %d second: %d",(*it4).first, (*it4).second->getSprite()->getTag());
+            ++it4;
+        }
+        
+        Drop* drop = dropMap.at(it);
+        drop->getSprite()->removeFromParentAndCleanup(false);
+        
+        //+++++++++
+        std::map<int, Drop*>::iterator it3 = dropMap.begin();
+        while( it3 != dropMap.end() )
+        {
+            log("%d回 %d second: %d",it,(*it3).first, (*it3).second->getSprite()->getTag());
+            ++it3;
+        }
+        
+        
     }
+    
+    //++++++++
+    std::map<int, Drop*>::iterator it2 = dropMap.begin();
+	while( it2 != dropMap.end() )
+	{
+		log("first: %d second: %d",(*it2).first, (*it2).second->getSprite()->getTag());
+		++it2;
+	}
+    
 }
-//
-//for (int i = 0; i < MAX_ROW; i++) {
-//    for (int j = 0; j < MAX_COL; j++) {
-//        int index = rand() % numbers->count();
-//        int number = ((CCInteger*)numbers->objectAtIndex(index))->getValue();
-//        GameCoordinates gameCoordinates(i, j);
-//        Drop* drop = Drop::create(number);
-//        
-//        Point loc = getLocation(gameCoordinates);
-//        Size winSize = Director::sharedDirector()->getWinSize();
-//        Size cardSize = drop->getContentSize();
-//        drop->setPosition(loc);
-//        tagNum++;
-//        drop->setTag(tagNum);
-//        
-//        Size size = drop->getContentSize();
-//        log("座標： %d %d locX: %f locY: %f",i,j,loc.x,loc.y);
-//        
-//        drop->setScale(0.5f);
-//        this->addChild(drop);
-//        
-//        if (i==0 && j==0) {
-//            Size mapSize = this->bg->getContentSize();
-//            this->tileSize = Rect(0, 0, mapSize.width/MAX_COL, mapSize.height/MAX_ROW);
-//        }
-//    }
-//}
-//
 

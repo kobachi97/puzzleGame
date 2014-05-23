@@ -52,6 +52,8 @@ private:
     
     
 //	GameTurn gameTurn;
+    int tapDropTag = 0;
+    bool isTouchCorrect = false;
     bool flagX = true;
     bool flagY = true;
 	bool playerTurnFlg = false;
@@ -91,7 +93,9 @@ private:
     std::vector<int> checkNearDrop(std::vector<int>list, GameCoordinates targetCord,int tag);
     bool isContain(std::vector<int>list, int num);
     void deleteChainDrop();
-    
+    void moveDrop();
+    void getNullTagList();
+    void updateDropMap();
     
     //******************
 	
